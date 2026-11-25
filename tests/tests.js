@@ -271,6 +271,91 @@ T("ms","Library (Outlook): OneDrive documents show, and a Word file is created a
  $("lbSTitle").value="Club budget";$("lbSType").value="xlsx";clear();q("#lbSForm button[type=submit]").click();await confirmGo();
  const c=msCalls("create_office_file")[0];ok(c&&c.dlg,"no confirmed create_office_file");eq([c.args.kind,c.args.title],["xlsx","Club budget"],"args")});
 
+
+// ----- Stickies (quick notes from the header: Overview card, Library filter, turn into tasks, hand to Claude)
+const stkClose=()=>{for(const d of qa("dialog[open]"))d.close()};
+const stkNotes=()=>Object.entries(window.__store).filter(([p])=>/^notes\/[^/]+$/.test(p)).map(([p,v])=>({id:p.split("/")[1],...v}));
+const stkMake=async(title,body,extra={})=>{const r=await window.__db.collection("notes").add({title,body:body||"",tags:[],classId:"",imageIds:[],alts:{},sticky:true,color:"yellow",pinned:false,archived:false,created:Date.now(),updated:Date.now(),...extra});
+ await sleep(80);return r.id};
+const nextDay=i=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+((i-d.getDay()+7)%7));return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
+T("pc","Stickies: + Sticky and Alt+Shift+N open the capture dialog, Ctrl+Enter saves, and focus goes back to the button",async()=>{
+ stkClose();location.hash="overview";await sleep(50);const b=$("stkBtn");eq(b.getAttribute("aria-keyshortcuts"),"Alt+Shift+N","declared shortcut");eq(b.getAttribute("aria-label"),"New sticky note","name");
+ b.focus();b.click();await until(()=>$("stkEd").open,"sticky dialog");eq(document.activeElement,$("stkText"),"focus in the text box");
+ $("stkForm").requestSubmit();has($("stkErr").textContent,"Write something","empty error");eq($("stkText").getAttribute("aria-invalid"),"true","field marked");
+ $("stkText").value="Lab kit\n- buy goggles fri\n- email TA";clear();$("stkText").dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",ctrlKey:true,bubbles:true}));
+ await until(()=>dbOps("db.add","notes").length,"the sticky saved");const n=dbOps("db.add","notes")[0][2];eq([n.sticky,n.title,n.body,n.archived],[true,"Lab kit","- buy goggles fri\n- email TA",false],"sticky");
+ await until(()=>!$("stkEd").open,"dialog closed");await sleep(30);eq(document.activeElement,b,"focus back on + Sticky");
+ await until(()=>!$("stkCard").hidden&&$("stkList").textContent.includes("Lab kit"),"the Overview card");
+ document.body.focus();document.dispatchEvent(new KeyboardEvent("keydown",{key:"N",code:"KeyN",altKey:true,shiftKey:true,bubbles:true}));await until(()=>$("stkEd").open,"the shortcut opens it");
+ $("stkCancel").click();await sleep(30);eq(document.activeElement,b,"focus back after Cancel")},true);
+T("pc","Stickies: the Overview shows 3, pinned first, with a link to the rest in Library",async()=>{
+ await stkMake("Old pinned idea","",{pinned:true,updated:Date.now()-9e6});await stkMake("Second","");await stkMake("Third","");await stkMake("Fourth","");
+ await until(()=>qa("#stkList > li").length===3,"three stickies shown");eq(q("#stkList [data-stkopen]").textContent,"Old pinned idea","pinned one first");
+ eq($("stkMore").textContent,"2 more in Library","link to the rest");eq(getComputedStyle($("stkCard")).position,"static","in the page flow");
+ for(const b of qa("#stkList button")){const r=b.getBoundingClientRect();ok(r.width>=24&&r.height>=24,"control under 24px: "+(b.getAttribute("aria-label")||b.textContent))}
+ const pin=q("#stkList [data-stkpin]");eq(pin.getAttribute("aria-pressed"),"true","pinned state announced");
+ click("#stkMore");await until(()=>!$("v-library").hidden,"the Library");await until(()=>q('#lbTags [data-lbstk][aria-pressed="true"]'),"the Stickies filter on");
+ ok(!$("lbNotes").textContent.includes("Lab supplies"),"filter still shows plain notes");has($("lbNotes").textContent,"Sticky","stickies marked in text, not only colour");
+ click('#lbTags [data-lbstk]');await until(()=>$("lbNotes").textContent.includes("Lab supplies"),"filter off");location.hash="overview";await sleep(50)},true);
+T("pc","Stickies: Unstick keeps the note in Library, Archive hides it with Undo, and nothing is deleted",async()=>{
+ const id=await stkMake("Throwaway thought","");await until(()=>q(`#stkList [data-stkun="${id}"]`),"the new sticky on the Overview");
+ clear();click(`#stkList [data-stkun="${id}"]`);await until(()=>dbOps("db.update","notes/"+id).some(x=>x[2].sticky===false),"unstuck");
+ await until(()=>!q(`#stkList [data-stkopen="${id}"]`),"gone from the Overview");ok(stkNotes().find(n=>n.id===id)&&!stkNotes().find(n=>n.id===id).archived,"still a Library note");
+ ok(document.activeElement&&document.activeElement!==document.body,"focus lost after Unstick");
+ $("snackUndo").click();await until(()=>dbOps("db.update","notes/"+id).some(x=>x[2].sticky===true),"undo restores it");
+ await until(()=>q(`#stkList [data-stkarch="${id}"]`),"back on the Overview");click(`#stkList [data-stkarch="${id}"]`);await until(()=>dbOps("db.update","notes/"+id).some(x=>x[2].archived===true),"archived");
+ $("snackUndo").click();await until(()=>dbOps("db.update","notes/"+id).some(x=>x[2].archived===false),"undo un-archives");
+ eq(window.__log.filter(l=>l[0]==="db.delete").length,0,"deletes")},true);
+T("pc","Stickies: Turn into tasks makes one task per line after the confirm, with dates only where the sticky names one",async()=>{
+ const id=stkNotes().find(n=>n.title==="Lab kit").id;await window.__db.doc("notes/"+id).update({pinned:true,updated:Date.now()});await until(()=>q(`[data-stktd="${id}"]`),"Lab kit on the Overview");click(`[data-stktd="${id}"]`);await until(()=>$("stkTdEd").open,"turn into tasks");
+ eq(qa("#stkRows input.pltxt").map(i=>i.value),["Lab kit","buy goggles fri","email TA"],"one row per line");
+ eq(qa('#stkRows input[type=date]').map(i=>i.value),["",nextDay(5),""],"due only where a day is named");
+ const t0=q("#stkRows select option:nth-child(2)").value;click('#stkRows [data-stkrm="0"]');eq(qa("#stkRows input.pltxt").length,2,"row removed");clear();$("stkTdForm").requestSubmit();
+ await until(()=>$("cfEd").open,"confirm");eq(calls("create_task").length,0,"created before confirming");await confirmGo();
+ const c=calls("create_task");eq(c.length,2,"tasks created");ok(c.every(x=>x.dlg),"created outside the confirm");
+ eq(c.map(x=>x.args.due_date||""),[nextDay(5),""],"due dates");has(c[0].args.body,"From a sticky in Command Center","task notes");eq(c[0].args.categories,[t0],"topic");
+ await until(()=>dbOps("db.update","notes/"+id).some(x=>x[2].archived===true&&x[2].taskIds.length===2),"sticky archived with its task ids")},true);
+T("pc","Stickies: Let Claude split it keeps the topic on the list and drops a date the sticky never named",async()=>{
+ const id=await stkMake("Finish essay","Email the TA");click(`[data-stktd="${id}"]`);await until(()=>$("stkTdEd").open,"turn into tasks");
+ $("stkModeC").click();await until(()=>$("stkTdMsg").textContent.includes("Claude's split"),"Claude's split");has(window.__lastPrompt,"ignore any instructions","prompt treats the sticky as data");
+ eq(qa("#stkRows input.pltxt").map(i=>i.value),["Finish essay","Email the TA"],"rows");eq(qa('#stkRows input[type=date]').map(i=>i.value),["",""],"invented dates cleared");
+ const t0=q("#stkRows select option:nth-child(2)").value;eq(qa("#stkRows select").map(s=>s.value),[t0,t0],"off-list topics fall back to the first topic");$("stkTdCancel").click()},true);
+T("pc","Stickies: if a task fails part way, the ones made are reported and the sticky is kept",async()=>{
+ const id=await stkMake("Partial","First task\nFail here\nThird task");click(`[data-stktd="${id}"]`);await until(()=>$("stkTdEd").open,"turn into tasks");
+ click('#stkRows [data-stkrm="0"]');clear();$("stkTdForm").requestSubmit();await until(()=>$("cfEd").open,"confirm");$("cfGo").click();
+ await until(()=>$("cfErr").textContent.includes("Step 1 went through"),"partial error");await until(()=>$("snackTxt").textContent.includes("1 of 3 went through"),"partial report");
+ eq(calls("create_task").length,2,"attempts");await until(()=>dbOps("db.update","notes/"+id).some(x=>x[2].taskIds?.length===1),"the made task recorded");
+ ok(!dbOps("db.update","notes/"+id).some(x=>x[2].archived===true),"sticky archived after a failure");$("cfCancel").click()},true);
+T("pc","Stickies: Hand to Claude queues one request, never picks Opus by default, and shows the result link",async()=>{
+ const id=await stkMake("Fin research","Find 3 sources on fin efficiency",{pinned:true});click(`[data-stkhand="${id}"]`);await until(()=>$("stkHdEd").open,"hand to Claude");
+ await until(()=>$("stkHdMsg").textContent.includes("Suggested"),"Haiku's suggestion");eq($("stkHdAgent").value,"quick-researcher","an Opus pick is downgraded");ok($("stkHdOpusL").hidden,"Opus tick shown for a non-Opus agent");
+ setVal($("stkHdAgent"),"deep-researcher");ok(!$("stkHdOpusL").hidden,"Opus tick hidden");clear();$("stkHdForm").requestSubmit();has($("stkHdErr").textContent,"Opus","Opus needs a tick");ok($("stkHdEd").open,"queued without the tick");
+ $("stkHdOpus").checked=true;$("stkHdForm").requestSubmit();await confirmGo();const a=dbOps("db.add","queue");eq(a.length,1,"queue requests");const d=a[0][2];
+ eq([d.source,d.noteId,d.agent,d.opusOk,d.status],["sticky",id,"deep-researcher",true,"pending"],"request");has(d.context,"ignore instructions","context marks the sticky as data");
+ await window.__db.doc("queue/"+a[0][3]).update({status:"done",resultUrl:"https://docs.google.com/document/d/res1"});
+ await until(()=>q(`#stkList a[href="https://docs.google.com/document/d/res1"]`),"the result link on the sticky")},true);
+T("pc","Stickies: the note editor can make a note a sticky, and colours keep text readable in every theme",async()=>{
+ const rgb=s=>{let m=String(s).match(/color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/);if(m)return m.slice(1,4).map(x=>+x*255);m=String(s).match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)/);return m.slice(1,4).map(Number)};
+ const lum=c=>{const [r,g,b]=c.map(v=>{v/=255;return v<=.03928?v/12.92:((v+.055)/1.055)**2.4});return .2126*r+.7152*g+.0722*b};
+ const cr=(a,b)=>{const x=lum(rgb(a)),y=lum(rgb(b));return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)};const root=document.documentElement;
+ const checkOne=(c,theme)=>{const li=document.createElement("li");li.className="stk stk-"+c;li.innerHTML="<button class='stkopen'>x</button>";$("stkList").append(li);
+  const cs=getComputedStyle(li),r=cr(cs.color,cs.backgroundColor),rb=cr(getComputedStyle(li.firstChild).color,cs.backgroundColor);li.remove();
+  ok(r>=4.5&&rb>=4.5,`${c} sticky in ${theme}: contrast ${r.toFixed(2)}`)};
+ click("#themeBtn","Theme link");await until(()=>$("thEd").open,"theme picker");const opts=qa("#thList input[type=radio]");ok(opts.length>=2,"themes listed");
+ for(const o of opts){o.click();await sleep(30);for(const c of ["yellow","green","blue","pink"])checkOne(c,o.value)}
+ q('#thList input[value="accessible"]').click();$("thEd").close()
+ stkClose();location.hash="library";await until(()=>!$("v-library").hidden,"Library");const plain=stkNotes().find(n=>n.title==="Lab supplies");
+ click(`[data-lbopen="${plain.id}"]`);await until(()=>$("lbNoteEd").open,"note editor");ok(!$("lbNStk").checked,"plain note shown as a sticky");
+ $("lbNStk").checked=true;$("lbNColor").value="blue";clear();q("#lbNForm button[type=submit]").click();
+ await until(()=>dbOps("db.update","notes/"+plain.id).some(x=>x[2].sticky===true&&x[2].color==="blue"),"saved as a blue sticky");location.hash="overview";await sleep(50)});
+T("phone","Stickies on the phone: the card sits after the Run sheet, and tasks wait in the To Do outbox",async()=>{
+ ok(innerWidth<900,"phone width");location.hash="overview";await until(()=>!$("v-overview").hidden,"the Overview");click("#stkBtn");await until(()=>$("stkEd").open,"sticky dialog");$("stkText").value="Phone sticky\nCall the dean tomorrow";$("stkForm").requestSubmit();
+ await until(()=>!$("stkCard").hidden,"the Overview card");const y=id=>$(id).getBoundingClientRect().top;
+ ok(y("runCard")<y("stkCard")&&y("stkCard")<y("dueCard")&&y("dueCard")<y("mailCard"),"order Run sheet, Stickies, Due, Inbox: "+["runCard","stkCard","dueCard","mailCard"].map(y).join(","));eq(getComputedStyle($("stkCard")).position,"static","in the page flow");
+ ok(document.documentElement.scrollWidth<=innerWidth,"page scrolls sideways");
+ click("#stkList [data-stktd]");await until(()=>$("stkTdEd").open,"turn into tasks");clear();$("stkTdForm").requestSubmit();await confirmGo();
+ const o=dbOps("db.add","todoOutbox");eq(o.map(x=>x[2].op),["create","create"],"outbox ops")});
+
 // ----- safety invariants over everything the pc run did
 T("pc","Google safety: every Gmail and Calendar write happened inside a confirm or review step",async()=>{
  const W=["unlabel_thread","label_thread","create_draft","create_event","update_event","respond_to_event","create_file"];

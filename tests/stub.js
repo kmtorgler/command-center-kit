@@ -116,7 +116,7 @@ const mcp={
     return {payload:{status:"success",answer:"Key concepts: fin efficiency; Nusselt number Nu = hL/k (dimensionless)."}};
    case "create_event":return {payload:{id:"newev",htmlLink:"https://calendar.google.com/newev"}};
    case "create_draft":return {payload:{id:"draft1"}};
-   case "create_task":{const t={id:"N"+(nid++),status:"notStarted",links:[],...args};delete t.list_id;tasks.push(t);return {payload:JSON.parse(JSON.stringify(t))}}
+   case "create_task":{if(args.title==="Fail here")throw {code:"tool_error",message:"refused for the test"};const t={id:"N"+(nid++),status:"notStarted",links:[],...args};delete t.list_id;tasks.push(t);return {payload:JSON.parse(JSON.stringify(t))}}
    case "update_task":case "complete_task":{const t=tasks.find(x=>x.id===args.task_id);if(!t)throw {code:"tool_error",message:"not found"};
     const {list_id,task_id,...rest}=args;Object.assign(t,rest);if(tool==="complete_task")t.status="completed";return {payload:JSON.parse(JSON.stringify(t))}}
    case "add_task_link":{const t=tasks.find(x=>x.id===args.task_id);return {payload:JSON.parse(JSON.stringify(t||{}))}}
@@ -136,6 +136,8 @@ const sample=async(p,o={})=>{window.__log.push(["sample",String(p).slice(0,120),
 sample.json=async(p,o={})=>{window.__log.push(["sample.json",String(p).slice(0,120)]);window.__lastPrompt=String(p);
  if(/Suggest 3 colour themes/.test(p))return {themes:[{name:"Crimson and gold",accent:"#a6192e",mode:"light",why:"your school colours"},{name:"Purple and red",accent:"#5b2c83",mode:"dark",why:"your fraternity colours"},{name:"bad",accent:"red",mode:"light"}]};
  if(/product manager for Command Center/.test(p))return {verdict:"setup",summary:"It can work once Buffer is connected.",how:"A Social tab saves drafts to Buffer.",needs:["A Buffer account"]};
+ if(/Split this sticky note/.test(p))return {tasks:[{title:"Finish essay",topic:"Basket weaving",due:k(3)},{title:"Email the TA",topic:null,due:"not a date"}]};
+ if(/Pick the best assistant agent/.test(p))return {agent:"deep-researcher"};
  if(/Turn this note into one calendar event/.test(p))return {title:"Study group",date:k(1),start:"19:00",end:"21:00",calendar:"Personal"};
  if(/Plan the rest of (her|their) day/.test(p)){const n=new Date();const m=Math.ceil((n.getHours()*60+n.getMinutes()+60)/5)*5;const hm=x=>`${String(Math.floor(x/60)).padStart(2,"0")}:${String(x%60).padStart(2,"0")}`;
   return {headline:"Test day",priorities:[{title:"Study",why:"exam",taskId:null,eventId:null}],blocks:m+30<1380?[{start:hm(m),end:hm(m+30),title:"Focus block",kind:"focus",taskId:null}]:[],startEarly:null}}

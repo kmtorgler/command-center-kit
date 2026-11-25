@@ -66,6 +66,10 @@ check("Microsoft writes never called directly (only Undo's move_to_inbox)", not 
 drive_direct = re.findall(r'callTool\("Google Drive","create_file"', main)
 check("Drive files are never created without the confirm step", not drive_direct, str(len(drive_direct)))
 
+sticky = main[main.find("// ---------- Stickies"):main.find("// ---------- desktop install")] if "// ---------- Stickies" in main else ""
+sticky_direct = re.findall(r'(?<!const r=await )tdWrite\(|(?<!const r=await dbRef\.)collection\("queue"\)\.add', sticky)
+check("stickies make tasks and queue requests only inside a confirm step", not sticky_direct, str(sticky_direct))
+
 check("connector text is escaped (no raw innerHTML of payloads)", "innerHTML=r.payload" not in main)
 
 marker = "<script>\n{"

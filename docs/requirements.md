@@ -88,5 +88,20 @@ _Origin: translated from the test suite of the first Command Center (one student
 | REQ-LIB-14 | Hand to Claude from the Library queues one pending request with the project's details. | core-library |
 | REQ-LIB-15 | The photo viewer is a dialog that takes focus, closes with its button or Escape, returns focus to the photo it came from, and zooms with buttons. | core-library |
 
+## Stickies (core: every copy has them)
+
+| ID | Requirement | Proved by |
+|---|---|---|
+| REQ-STICKY-1 | A sticky is a note in Command Center's own database (`notes` with `sticky:true`), works on the phone, and appears in Library search like any note. | stickies |
+| REQ-STICKY-2 | The header's "+ Sticky" button and Alt+Shift+N open a capture dialog that takes focus, saves with Ctrl+Enter, closes with Escape or Cancel and returns focus to the button. | stickies |
+| REQ-STICKY-3 | The Overview shows at most 3 stickies (pinned first) with a link to the rest in Library, sits after the Run sheet and before Due on a phone, and never covers other content. | stickies |
+| REQ-STICKY-4 | A sticky is never deleted: Unstick keeps it as a Library note, and Archive hides it with Undo. | stickies |
+| REQ-STICKY-5 | Sticky colours are decoration only (Library also marks stickies in text), and the text on each colour is at least 4.5:1 in every theme. | stickies |
+| REQ-STICKY-6 | Turn into tasks makes one editable task per line, or Claude's split when the person asks for it, and creates them only after the confirm step, through the same task path, so they wait in the outbox when To Do can't be reached. A partial failure says how many went through and keeps the sticky. | stickies; `build.py` |
+| REQ-STICKY-7 | A task's due date is filled in only when the sticky names a date, and its topic is always one of the person's own topics. | stickies |
+| REQ-STICKY-8 | Hand to Claude queues one pending request with `source:"sticky"` and the sticky's text as context, after the confirm step, and a finished request shows its https result link on the sticky. | stickies; `build.py` |
+| REQ-STICKY-9 | Opus agents are never picked for a sticky by default and need an explicit tick. | stickies |
+| REQ-STICKY-10 | Every sticky control has a name, is at least 24 by 24 CSS pixels, and keeps keyboard focus on or next to the sticky when the list refreshes. | stickies |
+
 ## Writing a new requirement
 One sentence: what must be true, in terms a student would notice. Give it the next free ID in its area (or a new area code), mark it core or name its feature, and point it at the test group that proves it.

@@ -221,6 +221,23 @@
         "REQ-LIB-13"
       ],
       "tests": "^Library \\(Outlook\\)"
+    },
+    {
+      "id": "stickies",
+      "core": true,
+      "requirements": [
+        "REQ-STICKY-1",
+        "REQ-STICKY-2",
+        "REQ-STICKY-3",
+        "REQ-STICKY-4",
+        "REQ-STICKY-5",
+        "REQ-STICKY-6",
+        "REQ-STICKY-7",
+        "REQ-STICKY-8",
+        "REQ-STICKY-9",
+        "REQ-STICKY-10"
+      ],
+      "tests": "^Stickies"
     }
   ]
 }
