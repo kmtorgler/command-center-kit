@@ -1,0 +1,5 @@
+tests/target.html
+tests/_main.js
+server/.venv/
+server/.pytest_cache/
+**/__pycache__/

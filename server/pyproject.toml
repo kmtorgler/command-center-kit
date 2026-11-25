@@ -1,0 +1,24 @@
+[project]
+name = "cc-microsoft-mcp"
+version = "0.1.0"
+description = "Command Center's local Microsoft server: Outlook mail and calendar plus Microsoft To Do over Microsoft Graph. Drafts only: it can't send mail. No delete tools."
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dependencies = [
+    "mcp>=1.10,<2",
+    "azure-identity>=1.17",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+cc-microsoft-mcp = "cc_microsoft_mcp.server:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cc_microsoft_mcp"]

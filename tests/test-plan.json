@@ -1,0 +1,199 @@
+{
+  "about": "Which requirement each test group proves (docs/requirements.md) and which student feature it needs. Core groups always run. Feature groups run only when project.json lists their feature; 'a+b' needs both. A test matching no group still runs, with a note to add it here. Groups match test names by regular expression.",
+  "features": {
+    "google": "Uses Gmail and Google Calendar",
+    "microsoft": "Uses Outlook mail and calendar through the local Microsoft server",
+    "tasks-builtin": "Tasks are kept in Command Center itself",
+    "microsoft-todo": "Tasks are kept in Microsoft To Do",
+    "org": "Belongs to a student organization (chapter, club) with its own calendar or updates",
+    "lms": "Has a class-deadline calendar (Canvas or similar)",
+    "notebooklm": "Uses NotebookLM notebooks for classes",
+    "plan-with-claude": "Uses Plan with Claude and the agent queue",
+    "desktop-app": "Installs Command Center as a desktop app",
+    "phone": "Uses Command Center on a phone"
+  },
+  "groups": [
+    {
+      "id": "core-safety",
+      "core": true,
+      "requirements": [
+        "REQ-SAFE-1",
+        "REQ-SAFE-2",
+        "REQ-SAFE-3"
+      ],
+      "tests": "^Safety:"
+    },
+    {
+      "id": "core-accessibility",
+      "core": true,
+      "requirements": [
+        "REQ-A11Y-1",
+        "REQ-A11Y-2",
+        "REQ-A11Y-3",
+        "REQ-A11Y-4",
+        "REQ-A11Y-5"
+      ],
+      "tests": "^(Keyboard:|Board: choosing a column|Quiz:|Focus ring|Timeline:)"
+    },
+    {
+      "id": "core-setup",
+      "core": true,
+      "requirements": [
+        "REQ-SETUP-1",
+        "REQ-SETUP-2",
+        "REQ-PRIV-2"
+      ],
+      "tests": "^Setup:"
+    },
+    {
+      "id": "core-themes",
+      "core": true,
+      "requirements": [
+        "REQ-THEME-1",
+        "REQ-THEME-2",
+        "REQ-THEME-3"
+      ],
+      "tests": "^(Themes:|Phone: the theme)"
+    },
+    {
+      "id": "core-feature-request",
+      "core": true,
+      "requirements": [
+        "REQ-FR-1"
+      ],
+      "tests": "^Feature request"
+    },
+    {
+      "id": "core-queue",
+      "core": true,
+      "requirements": [
+        "REQ-QUEUE-1"
+      ],
+      "tests": "^Queue:"
+    },
+    {
+      "id": "core-device",
+      "core": true,
+      "requirements": [
+        "REQ-DEV-1"
+      ],
+      "tests": "^Phone: the page never tries"
+    },
+    {
+      "id": "tasks-builtin",
+      "feature": "tasks-builtin",
+      "requirements": [
+        "REQ-TASK-1"
+      ],
+      "tests": "^Built-in tasks"
+    },
+    {
+      "id": "tasks-microsoft-todo-offline",
+      "feature": "microsoft-todo",
+      "requirements": [
+        "REQ-TASK-2",
+        "REQ-TASK-3"
+      ],
+      "tests": "^(Phone: no notifications bell|Phone: done tasks|Phone: notes only partly)"
+    },
+    {
+      "id": "google-safety",
+      "feature": "google",
+      "requirements": [
+        "REQ-SAFE-2"
+      ],
+      "tests": "^Google safety:"
+    },
+    {
+      "id": "google-mail",
+      "feature": "google",
+      "requirements": [
+        "REQ-MAIL-1",
+        "REQ-MAIL-2",
+        "REQ-MAIL-3"
+      ],
+      "tests": "^(Inbox |Draft reply)"
+    },
+    {
+      "id": "google-calendar",
+      "feature": "google",
+      "requirements": [
+        "REQ-CAL-1",
+        "REQ-CAL-2",
+        "REQ-CAL-3"
+      ],
+      "tests": "^(RSVP:|Quick add|Reschedule|Block time from|Plan my day)"
+    },
+    {
+      "id": "org-update",
+      "feature": "google+org",
+      "requirements": [
+        "REQ-ORG-1"
+      ],
+      "tests": "^Organization update"
+    },
+    {
+      "id": "lms-bulk",
+      "feature": "lms",
+      "requirements": [
+        "REQ-LMS-1"
+      ],
+      "tests": "^Bulk Canvas"
+    },
+    {
+      "id": "notebooklm-brief",
+      "feature": "notebooklm",
+      "requirements": [
+        "REQ-AI-1",
+        "REQ-NB-1"
+      ],
+      "tests": "^(Brief|Phone: Brief)"
+    },
+    {
+      "id": "plan-with-claude",
+      "feature": "plan-with-claude",
+      "requirements": [
+        "REQ-PLAN-1",
+        "REQ-PLAN-2",
+        "REQ-AI-2"
+      ],
+      "tests": "^(Plan with Claude|Plan:|Phone: Plan|Phone: steps|Phone: Hand)"
+    },
+    {
+      "id": "desktop-notifications",
+      "feature": "desktop-app",
+      "requirements": [
+        "REQ-DESK-1"
+      ],
+      "tests": "^Notifications"
+    },
+    {
+      "id": "desktop-window",
+      "feature": "desktop-app",
+      "requirements": [
+        "REQ-DESK-2"
+      ],
+      "tests": "^Installed app"
+    },
+    {
+      "id": "microsoft",
+      "feature": "microsoft",
+      "requirements": [
+        "REQ-CONS-2",
+        "REQ-SAFE-2",
+        "REQ-SAFE-3"
+      ],
+      "tests": "^(Microsoft only|Outlook )"
+    },
+    {
+      "id": "google-and-microsoft",
+      "feature": "google+microsoft",
+      "requirements": [
+        "REQ-CONS-1",
+        "REQ-CONS-2",
+        "REQ-CONS-3"
+      ],
+      "tests": "^Both:"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "about": "This student's features. The setup Claude writes this from the student's profile and interview (see .claude/skills/project-tests). Feature groups not listed here are skipped and reported, never deleted. This copy is the kit's example student.",
+  "student": "Alex Rivera (example): SigEp VP of SLC, Pittsburg State University",
+  "features": ["google", "microsoft", "tasks-builtin", "microsoft-todo", "org", "lms", "notebooklm", "plan-with-claude", "desktop-app", "phone"]
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Command Center tests</title>
+<style>
+body{margin:0;font:15px/1.45 system-ui,sans-serif;background:#f4f4f4;color:#111}
+header{background:#000;color:#fff;border-bottom:6px solid #FE5C00;padding:14px 20px}
+h1{margin:0;font-size:22px}#sum{font-weight:700;margin-top:4px}
+main{padding:16px 20px;display:grid;gap:16px}
+section{background:#fff;border:1px solid #ddd;border-radius:10px;padding:12px 16px}
+h2{margin:0 0 8px;font-size:17px}
+li{padding:4px 0;border-top:1px solid #eee;list-style:none}ul{margin:0;padding:0}
+.ok::before{content:"✓ ";color:#1f7a45;font-weight:700}.skip{color:#666}.skip::before{content:"– ";font-weight:700}.bad::before{content:"✗ ";color:#c00;font-weight:700}
+.bad{color:#900}.err{display:block;font-size:13px;color:#555;margin-left:1.3em}.ms{color:#888;font-size:12px}
+.frames{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+iframe{border:1px solid #ccc;background:#fff;height:520px}
+</style></head><body>
+<header><h1>Command Center tests</h1><div id="sum">Running…</div></header>
+<main><div id="out"></div>
+<details open><summary>Pages under test (kept visible: browsers can't focus controls that aren't drawn)</summary><div class="frames" id="frames"></div></details></main>
+<script>
+const MODES={pc:"Desktop app (Microsoft To Do)",notif:"Desktop app, notifications allowed",phone:"Phone (local servers unreachable)",local:"Built-in task list",setup:"First run (no profile)",ms:"Microsoft only (Outlook)",both:"Google and Microsoft together"},got={};
+const W={pc:1100,notif:900,phone:375,local:1000,setup:1000,ms:1000,both:1000};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// One mode at a time: the pages share localStorage, so running them together would mix up their notification state.
+const order=Object.keys(MODES);
+function next(){const m=order.find(x=>!got[x]&&!document.querySelector(`iframe[data-mode="${x}"]`));if(!m)return;
+ const f=document.createElement("iframe");f.dataset.mode=m;f.title=MODES[m];f.width=W[m];f.src="target.html#mode="+m;document.getElementById("frames").append(f)}
+addEventListener("message",e=>{if(!e.data?.ccTests)return;got[e.data.mode]=e.data.results;render();next()});
+next();
+function render(){let pass=0,fail=0,skip=0,html="";
+ for(const m of Object.keys(MODES)){const r=got[m];if(!r){html+=`<section><h2>${MODES[m]}</h2><p>Running…</p></section>`;continue}
+  html+=`<section><h2>${MODES[m]}</h2><ul>`+r.map(x=>{x.skipped?skip++:x.ok?pass++:fail++;return `<li class="${x.skipped?"skip":x.ok?"ok":"bad"}">${esc(x.name)} <span class="ms">${x.ms??""} ms${x.note?" · "+esc(x.note):""}</span>${x.ok?"":`<span class="err">${esc(x.err)}</span>`}</li>`}).join("")+"</ul></section>"}
+ document.getElementById("out").innerHTML=html;const done=Object.keys(got).length===Object.keys(MODES).length;
+ document.getElementById("sum").textContent=(done?"Done: ":"So far: ")+`${pass} passed, ${fail} failed, ${skip} skipped (features this student doesn't use)`;
+ window.__summary={done,pass,fail,skip,results:got}}
+render();
+</script></body></html>
