@@ -72,6 +72,24 @@
       "tests": "^Queue:"
     },
     {
+      "id": "core-library",
+      "core": true,
+      "requirements": [
+        "REQ-LIB-1",
+        "REQ-LIB-2",
+        "REQ-LIB-3",
+        "REQ-LIB-4",
+        "REQ-LIB-6",
+        "REQ-LIB-7",
+        "REQ-LIB-10",
+        "REQ-LIB-12",
+        "REQ-LIB-14",
+        "REQ-LIB-15",
+        "REQ-SAFE-2"
+      ],
+      "tests": "^(Library:|Library on the phone|Recent docs:)"
+    },
+    {
       "id": "core-device",
       "core": true,
       "requirements": [
@@ -194,6 +212,15 @@
         "REQ-CONS-3"
       ],
       "tests": "^Both:"
+    },
+    {
+      "id": "library-microsoft",
+      "feature": "microsoft",
+      "requirements": [
+        "REQ-LIB-9",
+        "REQ-LIB-13"
+      ],
+      "tests": "^Library \\(Outlook\\)"
     }
   ]
 }

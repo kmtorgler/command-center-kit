@@ -51,6 +51,7 @@ SCOPES = (
     "https://graph.microsoft.com/Tasks.ReadWrite",
     "https://graph.microsoft.com/Mail.ReadWrite",
     "https://graph.microsoft.com/Calendars.ReadWrite",
+    "https://graph.microsoft.com/Files.ReadWrite",  # Library: list OneDrive documents, create new Word/Excel files
 )
 # "common" = personal and school/work accounts. Set CC_MS_TENANT=consumers for personal only.
 TENANT = os.environ.get("CC_MS_TENANT", "common")
@@ -492,6 +493,90 @@ async def move_to_inbox(message_ids: list[str]) -> dict:
         n = await _graph("POST", f"/me/messages/{_id(mid, 'message id')}/move", body={"destinationId": "inbox"})
         back.append(n.get("id"))
     return {"moved": [x for x in back if x]}
+
+
+# ----- OneDrive for the Library: list documents, create a new Word or Excel file (never shares, moves or deletes)
+
+OFFICE_EXT = (".docx", ".xlsx", ".pptx", ".doc", ".xls", ".ppt", ".pdf")
+_X = lambda t: (t or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def build_office_file(kind: str, title: str, outline: str | None) -> bytes:
+    """A minimal, valid .docx or .xlsx (OOXML zip) with the title and the outline's lines."""
+    import io, zipfile
+    lines = [ln.rstrip() for ln in (outline or "").splitlines()][:400]
+    rels = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="{}"/></Relationships>')
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        if kind == "docx":
+            z.writestr("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                       '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+                       '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
+            z.writestr("_rels/.rels", rels.format("word/document.xml"))
+            para = lambda t, big=False: ('<w:p><w:r>' + ('<w:rPr><w:b/><w:sz w:val="32"/></w:rPr>' if big else '') + f'<w:t xml:space="preserve">{_X(t)}</w:t></w:r></w:p>')
+            body = para(title, True) + "".join(para(l) for l in lines)
+            z.writestr("word/document.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                       f'<w:body>{body}<w:sectPr/></w:body></w:document>')
+        elif kind == "xlsx":
+            z.writestr("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                       '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+                       '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+                       '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>')
+            z.writestr("_rels/.rels", rels.format("xl/workbook.xml"))
+            z.writestr("xl/workbook.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+                       'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>')
+            z.writestr("xl/_rels/workbook.xml.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                       '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>')
+            rows = "".join(f'<row r="{i}"><c r="A{i}" t="inlineStr"><is><t xml:space="preserve">{_X(t)}</t></is></c></row>' for i, t in enumerate([title] + lines, 1))
+            z.writestr("xl/worksheets/sheet1.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                       f'<sheetData>{rows}</sheetData></worksheet>')
+        else:
+            raise ValueError("kind must be docx or xlsx.")
+    return buf.getvalue()
+
+
+def safe_file_name(title: str) -> str:
+    name = re.sub(r'[\\/:*?"<>|#%\x00-\x1f]', " ", title or "").strip().strip(".")
+    name = re.sub(r"\s+", " ", name)[:120]
+    if not name:
+        raise ValueError("Give the file a name.")
+    return name
+
+
+async def _graph_put_bytes(path: str, data: bytes, content_type: str) -> dict:
+    headers = {"Authorization": f"Bearer {await _token()}", "Content-Type": content_type}
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.put(GRAPH + path, content=data, headers=headers)
+    if r.status_code >= 400:
+        raise RuntimeError(f"Microsoft Graph {r.status_code} {r.text[:300]}")
+    return r.json() if r.content else {}
+
+
+@mcp.tool(title="List OneDrive documents", annotations=READ)
+async def list_files(query: str = "", top: int = 10) -> dict:
+    """Recent Office documents and PDFs in OneDrive, newest first. With query, files whose name or content matches.
+
+    Each file: id, name, web_url, modified (ISO). Uses OneDrive search (the older /recent call is being retired)."""
+    q = (query or "").replace("'", "''")[:100]
+    r = await _graph("GET", f"/me/drive/root/search(q='{q}')", params={"$top": "100", "$select": "id,name,webUrl,lastModifiedDateTime,file"})
+    files = [f for f in r.get("value", []) if "file" in f and str(f.get("name", "")).lower().endswith(OFFICE_EXT)]  # the file facet may be {}
+    files.sort(key=lambda f: f.get("lastModifiedDateTime") or "", reverse=True)
+    return {"files": [{"id": f.get("id"), "name": f.get("name"), "web_url": f.get("webUrl") or "", "modified": f.get("lastModifiedDateTime")}
+                      for f in files[:max(1, min(int(top), 50))]]}
+
+
+@mcp.tool(title="Create a Word or Excel file", annotations=WRITE)
+async def create_office_file(kind: Literal["docx", "xlsx"], title: str, outline: str | None = None) -> dict:
+    """Create ONE new Word (.docx) or Excel (.xlsx) file in OneDrive's "Command Center" folder, with the title and an optional
+    starting outline (one line per paragraph or row). If the name is taken, OneDrive picks a new name; nothing is overwritten.
+    The file isn't shared with anyone."""
+    name = safe_file_name(title) + "." + kind
+    data = build_office_file(kind, title.strip()[:200], (outline or "")[:6000])
+    ctype = {"docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+             "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}[kind]
+    item = await _graph_put_bytes(f"/me/drive/root:/Command Center/{quote(name)}:/content?@microsoft.graph.conflictBehavior=rename", data, ctype)
+    return {"id": item.get("id"), "name": item.get("name"), "web_url": item.get("webUrl") or ""}
 
 
 # ----- Microsoft To Do (same names and arguments as the original To Do server)

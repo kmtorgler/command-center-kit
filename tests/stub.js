@@ -81,7 +81,7 @@ const mcp={
  watchTool:(server,tool,input,h)=>{window.__watches.push(server+" "+tool);setTimeout(()=>{
   if(server==="Google Calendar")h({type:"data",result:{payload:{events:evs[input.calendarId]||[]},cache:{storedAt:Date.now()}}});
   else if(server==="Gmail")h({type:"data",result:{payload:{threads},cache:{storedAt:Date.now()}}});
-  else if(server==="Google Drive")h({type:"data",result:{payload:{files:[]},cache:{storedAt:Date.now()}}});
+  else if(server==="Google Drive")h({type:"data",result:{payload:{files:[{id:"gx",title:"Lab 3 report",viewUrl:"https://docs.google.com/document/d/gx",mimeType:"application/vnd.google-apps.document",modifiedTime:new Date().toISOString()}]},cache:{storedAt:Date.now()}}});
   else if(hostDown(server))h({type:"error",error:{code:"server_not_connected"}});
   else if(server==="host:cc-microsoft"){const pl=tool==="list_tasks"?{tasks:JSON.parse(JSON.stringify(tasks))}:tool==="list_events"?{events:JSON.parse(JSON.stringify(msEvents[input.calendar_id]||[]))}:tool==="search_messages"?{threads:JSON.parse(JSON.stringify(msThreads))}:{};
    h({type:"data",result:{payload:pl,cache:{storedAt:Date.now()}}})}},30);return ()=>{}},
@@ -101,6 +101,8 @@ const mcp={
    case "respond_to_event":return {payload:{event_id:args.event_id,response:args.response}};
    case "find_free_time":return {payload:{time_slots:[{start:Z(at(1,14,0)),end:Z(at(1,16,0))}]}};
    case "whoami":return {payload:{account:"alex@example.edu"}};
+   case "list_files":return {payload:{files:[{id:"od1",name:"Budget.xlsx",web_url:"https://onedrive.example/od1",modified:new Date().toISOString()}]}};
+   case "create_office_file":return {payload:{id:"of1",name:args.title+"."+args.kind,web_url:"https://onedrive.example/of1"}};
   }}
   switch(tool){
    case "suggest_time":return {payload:{timeSlots:[{startTime:at(1,9,0),endTime:at(1,10,0)},{startTime:at(1,13,0),endTime:at(1,15,0)}]}};
@@ -118,6 +120,7 @@ const mcp={
    case "update_task":case "complete_task":{const t=tasks.find(x=>x.id===args.task_id);if(!t)throw {code:"tool_error",message:"not found"};
     const {list_id,task_id,...rest}=args;Object.assign(t,rest);if(tool==="complete_task")t.status="completed";return {payload:JSON.parse(JSON.stringify(t))}}
    case "add_task_link":{const t=tasks.find(x=>x.id===args.task_id);return {payload:JSON.parse(JSON.stringify(t||{}))}}
+   case "create_file":return {payload:{id:"gd1",title:args.title,viewUrl:"https://docs.google.com/document/d/gd1"}};
    case "search_threads":return {payload:{threads}};
    case "list_events":return {payload:{events:evs[args.calendarId]||[]}};
    default:return {payload:{}}}},
@@ -125,7 +128,9 @@ const mcp={
 window.__tasks=tasks;
 
 // ---- fake Claude sampling: answers by which feature's prompt it sees
-const sample=async(p,o={})=>{window.__log.push(["sample",String(p).slice(0,120)]);window.__lastPrompt=String(p);
+const sample=async(p,o={})=>{window.__log.push(["sample",String(p).slice(0,120),(o.images||[]).length]);window.__lastPrompt=String(p);
+ if(o.images?.length){const t=/alt text/.test(p)?"Whiteboard with heat transfer equations":"Fin efficiency\n- eta = tanh(mL)/(mL)";o.onText?.({text:t,delta:t});return {text:t,truncated:false}}
+ if(/starting outline/.test(p)){const t="Introduction\n- What is being tested?\nMethod\n- Which steps did you follow?";return {text:t,truncated:false}}
  const text=/update email/.test(p)?"Hi everyone,\n\nHere's what's coming up.\n\nAlex":"Hi Professor X,\n\nThanks for the details.\n\nAlex";
  o.onText?.({text,delta:text});return {text,truncated:false}};
 sample.json=async(p,o={})=>{window.__log.push(["sample.json",String(p).slice(0,120)]);window.__lastPrompt=String(p);
@@ -144,5 +149,10 @@ const desktop=MODE==="phone"?{install:{state:async()=>"unavailable"}}:{
  window:{place:async p=>{window.__placed.push(p);return {width:p.width,height:p.height}}},
  permissions:{state:async n=>n?perms[n]:{...perms},request:async()=>{perms.notifications="granted";return {...perms}},manage:async()=>{}},
  install:{state:async()=>"installed"}};
-window.claude={use:async n=>({mcp,db,sample,desktop,user:{isOwner:async()=>true}})[n]??null};
+// fake asset storage (uploads): records what was uploaded, serves nothing
+window.__uploads=[];let anum=1;
+const assets={upload:async(blob,opts={})=>{const id="as"+(anum++);window.__uploads.push({id,type:blob.type||opts.type||"",size:blob.size,name:blob.name||""});return {id,url:"/_blob/"+id,sizeBytes:blob.size,contentType:blob.type||opts.type||""}},
+ list:async()=>({assets:[],usage:{files:window.__uploads.length,bytes:0,maxFiles:100,maxBytes:1e8}}),delete:async()=>({deleted:false})};
+sample.limits=async()=>({images:{maxCount:4}});
+window.claude={use:async n=>({mcp,db,sample,desktop,assets,user:{isOwner:async()=>true}})[n]??null};
 })();

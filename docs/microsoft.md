@@ -3,13 +3,14 @@
 Command Center works with **Google, Microsoft, or both**. Google comes through Claude's Gmail, Google Calendar and Google Drive connectors. Microsoft (Outlook mail, Outlook calendar and Microsoft To Do) comes through a small **local server on your computer**, `cc-microsoft-mcp`, in this kit's `server/` folder.
 
 ## What the server can and can't do
-- **Reads:** your calendars and events, recent inbox conversations, one conversation's messages, and To Do tasks.
+- **Reads:** your calendars and events, recent inbox conversations, one conversation's messages, To Do tasks, and your recent OneDrive documents (for the Library).
 - **Writes, each only after you confirm in Command Center:**
   - save an email draft
   - archive a conversation (move it to the Archive folder), with undo
   - create or move an event, with no attendees, so nobody is invited
   - answer an invite (the organizer is told)
   - To Do changes
+  - create a new Word or Excel file in a OneDrive folder called "Command Center" (from the Library's Start a project; never shared, never overwrites)
 - **Can't send email.** The server never asks Microsoft for the send permission, so it couldn't send even if something went wrong. Drafts wait in Outlook for you to send.
 - **Can't delete anything.**
 

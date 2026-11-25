@@ -44,6 +44,10 @@ for f in scan_files:
     hits += [f"{f.name}: {m.group(0)}" for m in email.finditer(t) if not re.search(r"@(example\.(com|edu)|group\.example|import\.example)$", m.group(0))]
 check("no personal data (names, schools, organizations, real calendar IDs, real emails)", not hits, "; ".join(sorted(set(hits))[:12]))
 
+# prompts and labels must not assume the student's gender (the kit is for everyone)
+gendered = re.findall(r"(?:she|her|hers|herself|he|him|his|himself)", main + html[:html.find("<script>")])
+check("no gendered words about the student in the page", not gendered, str(sorted(set(gendered))))
+
 check("desktop manifest lists notifications", "notifications" in perms, str(perms))
 
 forbidden = re.findall(r'callTool\([^)]*?"(send_message|reply|forward|trash_\w+|delete_\w+|untrash_\w+|mark_\w*spam)"', main)
@@ -58,6 +62,9 @@ check("Calendar/Gmail create/update/RSVP/draft never called directly", not direc
 
 ms_direct = [w for w in re.findall(r'callTool\(MS,"(\w+)"', main) if w not in {"move_to_inbox", "get_thread", "list_calendars", "find_free_time", "list_events", "search_messages", "list_task_lists", "whoami"}]
 check("Microsoft writes never called directly (only Undo's move_to_inbox)", not ms_direct, str(ms_direct))
+
+drive_direct = re.findall(r'callTool\("Google Drive","create_file"', main)
+check("Drive files are never created without the confirm step", not drive_direct, str(len(drive_direct)))
 
 check("connector text is escaped (no raw innerHTML of payloads)", "innerHTML=r.payload" not in main)
 

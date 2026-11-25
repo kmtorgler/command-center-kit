@@ -45,6 +45,7 @@ def test_expected_tools():
         "whoami", "list_calendars", "list_events", "create_event", "update_event", "respond_to_event", "find_free_time",
         "search_messages", "get_thread", "create_draft", "archive_thread", "move_to_inbox",
         "list_task_lists", "list_tasks", "create_task", "update_task", "complete_task", "add_task_link",
+        "list_files", "create_office_file",
     }
 
 
@@ -143,3 +144,48 @@ def test_task_body():
     assert s.build_task_body(status="completed") == {"status": "completed"}
     b = s.build_task_body(title=" Lab ", categories=["School", "School", " "], due_date="2026-12-01")
     assert b["title"] == "Lab" and b["categories"] == ["School"] and b["dueDateTime"]["dateTime"] == "2026-12-01T00:00:00"
+
+
+# ---- Library: OneDrive
+import io, zipfile
+
+
+def test_files_scope_added_and_still_cannot_send():
+    assert any(x.endswith("/Files.ReadWrite") for x in s.SCOPES)
+    assert not [x for x in s.SCOPES if "Mail.Send" in x or "Sites." in x or ".All" in x]
+
+
+@pytest.mark.parametrize("kind,part", [("docx", "word/document.xml"), ("xlsx", "xl/worksheets/sheet1.xml")])
+def test_office_files_are_valid_zips_with_the_outline(kind, part):
+    data = s.build_office_file(kind, "Lab 4 <report> & notes", "Intro\nMethod")
+    z = zipfile.ZipFile(io.BytesIO(data))
+    assert z.testzip() is None and "[Content_Types].xml" in z.namelist() and "_rels/.rels" in z.namelist()
+    xml = z.read(part).decode()
+    assert "Lab 4 &lt;report&gt; &amp; notes" in xml and "Method" in xml
+
+
+def test_file_names_cannot_escape_the_folder():
+    assert "/" not in s.safe_file_name("../../secret/x") and "\\" not in s.safe_file_name("a\\b")
+    with pytest.raises(ValueError):
+        s.safe_file_name("  ...  ")
+
+
+def test_create_office_file_puts_one_new_file_and_never_overwrites(monkeypatch):
+    seen = []
+    async def fake_put(path, data, ctype):
+        seen.append((path, ctype, data[:2]))
+        return {"id": "f1", "name": "Lab.docx", "webUrl": "https://onedrive.example/f1"}
+    monkeypatch.setattr(s, "_graph_put_bytes", fake_put)
+    r = asyncio.run(s.create_office_file("docx", "Lab / 4", "Intro"))
+    assert len(seen) == 1 and seen[0][0].startswith("/me/drive/root:/Command Center/") and "conflictBehavior=rename" in seen[0][0]
+    assert seen[0][2] == b"PK" and r["web_url"].startswith("https://")
+
+
+def test_list_files_keeps_documents_newest_first(graph):
+    graph.responses[("GET", "/search")] = {"value": [
+        {"id": "1", "name": "old.docx", "file": {}, "lastModifiedDateTime": "2026-01-01T00:00:00Z", "webUrl": "https://x/1"},
+        {"id": "2", "name": "photo.jpg", "file": {}, "lastModifiedDateTime": "2026-11-01T00:00:00Z"},
+        {"id": "3", "name": "Folder", "folder": {}, "lastModifiedDateTime": "2026-11-02T00:00:00Z"},
+        {"id": "4", "name": "new.xlsx", "file": {}, "lastModifiedDateTime": "2026-11-20T00:00:00Z", "webUrl": "https://x/4"}]}
+    r = asyncio.run(s.list_files())
+    assert [f["name"] for f in r["files"]] == ["new.xlsx", "old.docx"]

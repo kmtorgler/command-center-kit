@@ -218,9 +218,62 @@ T("pc","Queue: a finished request's full text opens under Read the result",async
  closeAll();await window.__db.collection("queue").add({agent:"writer",request:"Summarize ch 7",status:"done",result:"Summary written.",resultText:"Chapter 7 covers fins.",created:Date.now()});
  const d=await until(()=>q("#queue details.qres"),"the Read the result expander");has(d.textContent,"Chapter 7 covers fins.","result text");ok(!d.open,"opened by default")});
 
+
+// ----- Library (notes, photos, files, documents, start a project)
+const pngFile=async(name)=>{const c=document.createElement("canvas");c.width=40;c.height=30;const g=c.getContext("2d");g.fillStyle="#08f";g.fillRect(0,0,40,30);
+ const b=await new Promise(r=>c.toBlob(r,"image/png"));return new File([b],name||"wb.png",{type:"image/png"})};
+const pick=(input,file)=>{const dt=new DataTransfer();dt.items.add(file);input.files=dt.files;input.dispatchEvent(new Event("change",{bubbles:true}))};
+T("pc","Library: a note saves with tags and a class, and search and tag filters find it",async()=>{
+ closeAll();location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");click("#lbAddNote");await until(()=>$("lbNoteEd").open,"note editor");
+ $("lbNTitle").value="Lab supplies";$("lbNBody").value="Buy goggles before Thursday";$("lbNTags").value="lab, errands";clear();q("#lbNForm button[type=submit]").click();
+ await until(()=>dbOps("db.add","notes").length,"the note saved");const n=dbOps("db.add","notes")[0][2];eq([n.title,n.tags,n.archived],["Lab supplies",["lab","errands"],false],"note");
+ setVal($("lbSearch"),"goggles");await until(()=>$("lbNotes").textContent.includes("Lab supplies"),"search result");has($("lbLive").textContent,"1 result","announced count");
+ setVal($("lbSearch"),"zzz");await until(()=>$("lbNotes").textContent.includes("No notes match"),"empty search");setVal($("lbSearch"),"");
+ click('#lbTags [data-lbtag="errands"]');await until(()=>$("lbNotes").textContent.includes("Lab supplies"),"tag filter");click('#lbTags [data-lbtag="errands"]')},true);
+T("pc","Library: search also finds study items from Classes",async()=>{
+ setVal($("lbSearch"),"practice");await until(()=>$("lbStudy").textContent.includes("Practice quiz"),"the Classes quiz in results");setVal($("lbSearch"),"")},true);
+T("pc","Library: a photo needs a description, and is shrunk and re-saved as JPEG before upload",async()=>{
+ closeAll();location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");pick($("lbPhoto"),await pngFile());await until(()=>$("lbPhotoEd").open,"photo dialog");
+ q("#lbPForm button[type=submit]").click();has($("lbPErr").textContent,"Describe the photo","error");eq($("lbAlt").getAttribute("aria-invalid"),"true","field marked");
+ clear();$("lbAltSuggest").click();await until(()=>$("lbAlt").value,"suggested description");ok(window.__log.some(l=>l[0]==="sample"&&l[2]===1),"the photo was not sent to Claude");
+ q("#lbPForm button[type=submit]").click();await until(()=>window.__uploads.length,"the upload");eq(window.__uploads[0].type,"image/jpeg","uploaded type (re-encoded)");
+ await until(()=>$("lbNoteEd").open,"the new note");q("#lbNForm button[type=submit]").click();await until(()=>dbOps("db.add","notes").some(x=>(x[2].imageIds||[]).length),"photo note saved");
+ const n=dbOps("db.add","notes").find(x=>(x[2].imageIds||[]).length)[2];eq(n.alts[n.imageIds[0]],"Whiteboard with heat transfer equations","stored description")},true);
+T("pc","Library: Turn the photo's text into a note puts the text in the note to edit",async()=>{
+ closeAll();location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");pick($("lbPhoto"),await pngFile("notes.png"));await until(()=>$("lbPhotoEd").open,"photo dialog");$("lbAlt").value="Lecture notes page";
+ $("lbToNote").click();await until(()=>$("lbPMsg").textContent.includes("Text ready"),"transcription");q("#lbPForm button[type=submit]").click();
+ await until(()=>$("lbNoteEd").open&&$("lbNBody").value.includes("Fin efficiency"),"note with the transcribed text");$("lbNCancel").click()},true);
+T("pc","Library: the photo viewer takes focus and gives it back when closed",async()=>{
+ closeAll();location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");const th=await until(()=>q("#lbPhotos [data-lbview]"),"a photo thumbnail");th.focus();th.click();await until(()=>$("lbView").open,"viewer");
+ eq(document.activeElement,$("lbVClose"),"focus in the viewer");ok($("lbVImg").alt,"image has alt text");$("lbVClose").click();await sleep(50);eq(document.activeElement,th,"focus back on the thumbnail")});
+T("pc","Library: Start a project drafts an outline, then creates one Google Doc after a confirm",async()=>{
+ closeAll();location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");click("#lbStart");await until(()=>$("lbStartEd").open,"start dialog");$("lbSTitle").value="Lab 4 report";$("lbSType").value="doc";
+ $("lbSDraft").click();await until(()=>$("lbSOut").value.includes("Introduction"),"outline");has(window.__lastPrompt,"never write the content","outline prompt (structure only)");
+ clear();q("#lbSForm button[type=submit]").click();await until(()=>$("cfEd").open,"confirm");has($("cfRead").textContent,"Introduction","preview shows the outline");await confirmGo();
+ const c=calls("create_file");eq(c.length,1,"files created");eq([c[0].args.title,c[0].args.contentMimeType],["Lab 4 report","text/plain"],"args");ok(c[0].dlg,"created outside the confirm");
+ await until(()=>dbOps("db.add","projects").length,"recorded under Documents")});
+T("pc","Library: Hand a project to Claude queues one request",async()=>{
+ closeAll();location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");click("#lbStart");await until(()=>$("lbStartEd").open,"start dialog");$("lbSTitle").value="Chapter budget";clear();$("lbSHand").click();await confirmGo();
+ const a=dbOps("db.add","queue");eq(a.length,1,"queue requests");eq([a[0][2].source,a[0][2].status],["library","pending"],"request")});
+T("pc","Library: uploaded files are listed and archiving hides them without deleting",async()=>{
+ closeAll();location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");clear();pick($("lbFile"),new File(["hello"],"syllabus.txt",{type:"text/plain"}));await until(()=>dbOps("db.add","libfiles").length,"file recorded");
+ const b=await until(()=>q("#lbFiles [data-lbfarch]"),"archive button");b.click();await until(()=>dbOps("db.update","libfiles/").some(x=>x[2].archived===true),"archived");
+ eq(window.__log.filter(l=>l[0]==="db.delete").length,0,"deletes")});
+T("pc","Recent docs: + New asks first before creating a file",async()=>{
+ closeAll();location.hash="overview";await sleep(50);click("#newBtn");$("newTitle").value="Scratch doc";clear();q("#newForm button[type=submit]").click();
+ await until(()=>$("cfEd").open,"confirm");eq(calls("create_file").length,0,"created before confirming");await confirmGo();ok(calls("create_file")[0].dlg,"created outside the confirm")});
+T("phone","Library on the phone: notes save, and Google documents still show",async()=>{
+ location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");click("#lbAddNote");await until(()=>$("lbNoteEd").open,"note editor");$("lbNBody").value="Call the dean's office";clear();q("#lbNForm button[type=submit]").click();
+ await until(()=>dbOps("db.add","notes").length,"note saved on the phone");await until(()=>$("lbDocs").textContent.includes("Lab 3 report"),"Drive document")});
+T("ms","Library (Outlook): OneDrive documents show, and a Word file is created after a confirm",async()=>{
+ location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");await until(()=>$("lbDocs").textContent.includes("Budget.xlsx"),"OneDrive file");click("#lbStart");await until(()=>$("lbStartEd").open,"start dialog");
+ const kinds=[...$("lbSType").options].map(o=>o.value);eq(kinds,["docx","xlsx"],"kinds offered to a Microsoft-only student");
+ $("lbSTitle").value="Club budget";$("lbSType").value="xlsx";clear();q("#lbSForm button[type=submit]").click();await confirmGo();
+ const c=msCalls("create_office_file")[0];ok(c&&c.dlg,"no confirmed create_office_file");eq([c.args.kind,c.args.title],["xlsx","Club budget"],"args")});
+
 // ----- safety invariants over everything the pc run did
 T("pc","Google safety: every Gmail and Calendar write happened inside a confirm or review step",async()=>{
- const W=["unlabel_thread","label_thread","create_draft","create_event","update_event","respond_to_event"];
+ const W=["unlabel_thread","label_thread","create_draft","create_event","update_event","respond_to_event","create_file"];
  const bad=window.__allCalls.filter(c=>W.includes(c.tool)&&!c.dlg);eq(bad.map(c=>c.tool),[],"writes without a confirm");
  ok(window.__allCalls.filter(c=>W.includes(c.tool)).length>=8,"too few writes were exercised")});
 T("pc,phone,notif,local,setup,ms,both","Safety: send, reply, forward, trash and delete tools are never called",async()=>{
@@ -314,7 +367,7 @@ T("ms","Outlook calendar: Block time, RSVP and Reschedule go to Outlook, times i
  clear();click('[data-resched="cc1"]');await until(()=>$("rsEd").open,"reschedule");$("rsDate").value=window.__day(3);$("rsStart").value="14:00";$("rsGo").click();await confirmGo();
  const u=msCalls("update_event")[0];eq([u.args.event_id,u.args.start.endsWith("Z")],["cc1",true],"move")});
 T("ms","Outlook safety: every Outlook mail and calendar write happened inside a confirm or review step",async()=>{
- const W=["create_event","update_event","respond_to_event","create_draft","archive_thread"];const w=window.__allCalls.filter(c=>c.server===MSV&&W.includes(c.tool));
+ const W=["create_event","update_event","respond_to_event","create_draft","archive_thread","create_office_file"];const w=window.__allCalls.filter(c=>c.server===MSV&&W.includes(c.tool));
  ok(w.length>=5,"too few Outlook writes exercised");eq(w.filter(c=>!c.dlg).map(c=>c.tool),[],"writes without a confirm")});
 
 // ======================= Google and Microsoft together =======================
