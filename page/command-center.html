@@ -515,20 +515,19 @@ dialog h3{grid-column:1/-1;font-size:19px;margin:6px 0 0}
   <div class="card">
     <h2 id="lbH">Library <small id="lbCount"></small></h2>
     <div class="lbbar">
-      <label for="lbSearch" class="vh">Search your library</label><input type="search" id="lbSearch" placeholder="Search notes, photos and study items" autocomplete="off">
+      <label for="lbSearch" class="vh">Search your library</label><input type="search" id="lbSearch" placeholder="Search notes and study items" autocomplete="off">
       <label for="lbArchT" class="lbarch"><input type="checkbox" id="lbArchT"> Show archived</label>
     </div>
     <div class="chips" id="lbTags" role="group" aria-label="Filter notes by tag"></div>
     <p class="vh" id="lbLive" role="status" aria-live="polite"></p>
-    <div class="acts lbacts"><button class="go" id="lbAddNote">New note</button><button id="lbPhotoBtn">Add a photo</button><button id="lbFileBtn">Upload a file</button><button id="lbStart">Start a project</button></div>
-    <input type="file" id="lbPhoto" accept="image/*" hidden><input type="file" id="lbFile" accept=".pdf,.txt,.md,.csv,image/*" hidden>
-    <p class="muted" id="lbUpNote" hidden>Photos and files you upload are stored in this page. Anyone you share the page with could see them, so keep sensitive scans in your own Drive.</p>
+    <div class="acts lbacts"><button class="go" id="lbAddNote">New note</button><button id="lbFileBtn">Upload a file</button><button id="lbStart">Start a project</button></div>
+    <input type="file" id="lbFile" accept=".pdf,.txt,.md,.csv" hidden>
+    <p class="muted" id="lbUpNote" hidden>Files you upload are stored in this page. Anyone you share the page with could see them, so keep sensitive scans in your own Drive.</p>
   </div>
   <div class="lbgrid">
     <div class="card"><h2>Notes</h2><ul id="lbNotes"><li class="muted">Loading</li></ul><div id="lbStudy"></div></div>
     <div class="col">
-      <div class="card"><h2>Photos</h2><ul class="lbphotos" id="lbPhotos"></ul></div>
-      <div class="card"><h2>Documents</h2><ul id="lbDocs"></ul><h3 style="font-size:17px;margin:12px 0 4px">Uploaded files</h3><ul id="lbFiles"></ul></div>
+            <div class="card"><h2>Documents</h2><ul id="lbDocs"></ul><h3 style="font-size:17px;margin:12px 0 4px">Uploaded files</h3><ul id="lbFiles"></ul></div>
     </div>
   </div>
 </section>
@@ -775,31 +774,8 @@ dialog h3{grid-column:1/-1;font-size:19px;margin:6px 0 0}
     <label for="lbNClass">Class<select id="lbNClass"></select></label>
     <label class="stkchk" for="lbNStk"><input type="checkbox" id="lbNStk"> Show on Overview as a sticky</label>
     <label for="lbNColor">Sticky colour<select id="lbNColor"><option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="pink">Pink</option></select></label>
-    <ul class="full lbnimgs" id="lbNImgs" aria-label="Photos in this note"></ul>
-    <div class="full"><button type="button" id="lbNAddPhoto" class="mini">Add a photo to this note</button></div>
     <p class="err full" id="lbNErr" role="alert"></p>
     <div class="acts"><button type="button" id="lbNArch" style="margin-right:auto" hidden>Archive</button><button type="button" id="lbNCancel">Cancel</button><button type="submit" class="go">Save note</button></div>
-  </form>
-</dialog>
-
-<dialog id="lbPhotoEd" aria-labelledby="lbPH">
-  <form id="lbPForm" method="dialog" novalidate>
-    <h2 id="lbPH">Add a photo</h2>
-    <div class="full lbprev"><img id="lbPrevImg" alt="The photo you picked"></div>
-    <label class="full" for="lbAlt">Describe the photo (needed for screen readers)<input id="lbAlt" maxlength="250" autocomplete="off" placeholder="e.g. Whiteboard: heat transfer equations from lecture 12"></label>
-    <div class="full plbar"><button type="button" id="lbAltSuggest" class="mini">Suggest a description</button><button type="button" id="lbToNote" class="mini">Turn the photo's text into a note</button></div>
-    <p class="src" id="lbPMsg" role="status" aria-live="polite"></p>
-    <p class="src">The photo is shrunk and re-saved before it's stored, which removes location data.</p>
-    <p class="err full" id="lbPErr" role="alert"></p>
-    <div class="acts"><button type="button" id="lbPCancel">Cancel</button><button type="submit" class="go" id="lbPSave">Save photo</button></div>
-  </form>
-</dialog>
-
-<dialog id="lbView" aria-labelledby="lbVCap">
-  <form method="dialog" class="lbviewf">
-    <div class="lbvimg"><img id="lbVImg" alt=""></div>
-    <p class="cfsum" id="lbVCap"></p>
-    <div class="acts"><button type="button" id="lbVOut" aria-label="Zoom out">−</button><button type="button" id="lbVIn" aria-label="Zoom in">+</button><button type="button" id="lbVNote" style="margin-right:auto">Open its note</button><button type="button" id="lbVClose" class="go">Close</button></div>
   </form>
 </dialog>
 
@@ -2411,22 +2387,20 @@ const libMatch=(txt,q)=>!q||String(txt||"").toLowerCase().includes(q);
 function renderLibrary(){if(view!=="library")return;const q=lbQuery.toLowerCase();
  const ns=notes.filter(n=>(lbShowArch||!n.archived)&&(!lbStk||n.sticky)&&(!lbTag||(n.tags||[]).includes(lbTag))&&libMatch([n.title,n.body,(n.tags||[]).join(" "),Object.values(n.alts||{}).join(" ")].join(" "),q)).sort((a,b)=>(!!(b.sticky&&!b.archived)-!!(a.sticky&&!a.archived))||(b.updated||0)-(a.updated||0));
  const study=q?(typeof items!=="undefined"?items:[]).filter(i=>!i.archived&&libMatch(i.title+" "+(i.body||""),q)).slice(0,8):[];
- const photos=ns.flatMap(n=>(n.imageIds||[]).map(id=>({id,alt:(n.alts||{})[id]||"",note:n})));
  $("lbCount").textContent=`${ns.length} note${ns.length===1?"":"s"}`;
  setHTML($("lbTags"),(lbStk||notes.some(n=>n.sticky&&!n.archived)?`<button class="chip" data-lbstk="1" aria-pressed="${lbStk}">Stickies</button>`:"")+libTags().map(t=>`<button class="chip" data-lbtag="${esc(t)}" aria-pressed="${lbTag===t}">${esc(t)}</button>`).join(""));
  $("lbLive").textContent=q||lbTag||lbStk?`${ns.length+study.length} result${ns.length+study.length===1?"":"s"}`:"";
  setHTML($("lbNotes"),ns.length?ns.slice(0,40).map(n=>`<li class="row${n.sticky&&!n.archived?" stkrow stk-"+stkColor(n.color):""}"><div class="grow"><button class="ttl" data-lbopen="${esc(n.id)}">${esc(n.title||String(n.body||"").slice(0,60)||"Untitled note")}</button>${n.sticky&&!n.archived?` <span class="tag">Sticky</span>`:""}${n.archived?` <span class="muted">· archived</span>`:""}
-   <div class="muted">${(n.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}${(n.imageIds||[]).length?`<span class="tag">${n.imageIds.length} photo${n.imageIds.length===1?"":"s"}</span>`:""}${esc(String(n.body||"").slice(0,140))}</div></div>
-   <span class="when">${esc(fmtDay(new Date(n.updated||n.created||Date.now())))}</span></li>`).join(""):`<li class="muted">${q||lbTag||lbStk?"No notes match.":"No notes yet. Capture a thought, or add a photo of a whiteboard."}</li>`);
+   <div class="muted">${(n.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}${esc(String(n.body||"").slice(0,140))}</div></div>
+   <span class="when">${esc(fmtDay(new Date(n.updated||n.created||Date.now())))}</span></li>`).join(""):`<li class="muted">${q||lbTag||lbStk?"No notes match.":"No notes yet. Capture a thought."}</li>`);
  setHTML($("lbStudy"),study.length?`<h3>Study items in Classes</h3><ul>${study.map(i=>`<li class="row"><div class="grow">${esc(i.title)}</div><span class="when">${esc((classes.find(c=>c.id===i.classId)||{}).code||"")}</span></li>`).join("")}</ul>`:"");
- setHTML($("lbPhotos"),photos.length?photos.slice(0,24).map(p=>`<li><button class="lbthumb" data-lbview="${esc(p.id)}" data-lbnote="${esc(p.note.id)}" aria-label="Open photo: ${esc(p.alt||"no description")}"><img src="${esc(blobUrl(p.id))}" alt="${esc(p.alt)}" loading="lazy"></button></li>`).join(""):`<li class="muted">No photos yet.</li>`);
  const fl=libFiles.filter(f=>lbShowArch||!f.archived).sort((a,b)=>(b.created||0)-(a.created||0));
  setHTML($("lbFiles"),fl.length?fl.slice(0,20).map(f=>`<li class="row"><span class="tag">${esc(String(f.type||"file").split("/").pop().toUpperCase().slice(0,5))}</span><div class="grow">${blobUrl(f.assetId)?`<a href="${esc(blobUrl(f.assetId))}" target="_blank" rel="noopener">${esc(f.name)}</a>`:esc(f.name)}</div><span class="when">${esc(Math.max(1,Math.round((f.size||0)/1024)))} KB</span>${f.archived?"":icoBtn("data-lbfarch",f.id,"Archive "+f.name+" (hides it; nothing is deleted)",IC_ARCH)}</li>`).join(""):`<li class="muted">No uploaded files.</li>`);
  const docs=[...(LIB_G()?lbDriveFiles.slice(0,8).map(x=>({t:x.title||"(untitled)",u:safeUrl(x.viewUrl),src:"Google Drive"})):[]),
   ...(LIB_M()&&lbOneDrive?lbOneDrive.slice(0,8).map(x=>({t:x.name,u:safeUrl(x.web_url),src:"OneDrive"})):[]),
   ...projects.slice().sort((a,b)=>(b.created||0)-(a.created||0)).slice(0,6).map(x=>({t:x.title,u:safeUrl(x.url),src:"Started here"}))];
  setHTML($("lbDocs"),docs.length?docs.map(d=>`<li class="row"><span class="tag">${esc(d.src)}</span><div class="grow">${d.u?`<a href="${esc(d.u)}" target="_blank" rel="noopener">${esc(d.t)}</a>`:esc(d.t)}</div></li>`).join(""):`<li class="muted">${LIB_G()||LIB_M()?"Loading your documents"+"…":"No document account connected."}</li>`);
- $("lbArchT").checked=lbShowArch;$("lbUpNote").hidden=!assetsRef;$("lbPhotoBtn").disabled=$("lbFileBtn").disabled=!assetsRef;
+ $("lbArchT").checked=lbShowArch;$("lbUpNote").hidden=!assetsRef;$("lbFileBtn").disabled=!assetsRef;
  if(LIB_M()&&lbOneDrive===null&&mcpRef&&LIB_MS){lbOneDrive=[];mcpRef.callTool(LIB_MS,"list_files",{top:10}).then(r=>{lbOneDrive=r.payload?.files||[];if(dbRef)dbRef.doc("mscache/files").set({data:lbOneDrive,stamp:Date.now()}).catch(()=>{});renderLibrary()})
   .catch(e=>{if(e?.code==="server_not_connected"&&dbRef)dbRef.doc("mscache/files").get().then(s=>{lbOneDrive=s.exists?s.data()?.data||[]:[];renderLibrary()}).catch(()=>{})})}}
 $("lbSearch").addEventListener("input",e=>{lbQuery=e.target.value.trim();renderLibrary()});
@@ -2439,7 +2413,7 @@ function openNote(id,pre){const n=id?notes.find(x=>x.id===id):null;lbNoteId=n?n.
  $("lbNH").textContent=n?"Edit note":"New note";$("lbNTitle").value=n?.title||pre?.title||"";$("lbNBody").value=n?.body||pre?.body||"";$("lbNTags").value=(n?.tags||pre?.tags||[]).join(", ");
  $("lbNClass").innerHTML=`<option value="">No class</option>`+(typeof classes!=="undefined"?classes:[]).filter(c=>!c.archived).map(c=>`<option value="${esc(c.id)}">${esc(c.code)}</option>`).join("");$("lbNClass").value=n?.classId||pre?.classId||"";$("lbNStk").checked=!!(n?n.sticky:pre?.sticky);$("lbNColor").value=stkColor(n?.color||pre?.color);
  $("lbNArch").hidden=!n;$("lbNArch").textContent=n?.archived?"Restore":"Archive";$("lbNErr").textContent="";lbNoteImgsRender();showDlg($("lbNoteEd"));if(!matchMedia("(pointer:coarse)").matches)$("lbNTitle").focus()}
-function lbNoteImgsRender(){setHTML($("lbNImgs"),lbNoteImgs.map(id=>`<li><img src="${esc(blobUrl(id))}" alt="${esc(lbNoteAlts[id]||"")}"><span class="muted">${esc(lbNoteAlts[id]||"")}</span></li>`).join(""))}
+function lbNoteImgsRender(){}// photos are off for now; ids already on a note are kept
 $("lbAddNote").onclick=()=>openNote(null);
 $("lbNCancel").onclick=()=>$("lbNoteEd").close();
 $("lbNForm").addEventListener("submit",async e=>{e.preventDefault();const title=$("lbNTitle").value.trim().slice(0,160),body=$("lbNBody").value.slice(0,20000);
@@ -2449,38 +2423,7 @@ $("lbNForm").addEventListener("submit",async e=>{e.preventDefault();const title=
  try{if(lbNoteId)await dbRef.doc("notes/"+lbNoteId).update(doc);else await dbRef.collection("notes").add({...doc,archived:false,created:Date.now()});$("lbNoteEd").close();snack("Note saved.")}catch(er){$("lbNErr").textContent=er?.code==="quota_exceeded"?"Storage is full. Archive some notes first.":"Couldn't save. Try again."}});
 $("lbNArch").onclick=async()=>{const n=notes.find(x=>x.id===lbNoteId);if(!n||!dbRef)return;try{await dbRef.doc("notes/"+n.id).update({archived:!n.archived,updated:Date.now()});$("lbNoteEd").close();snack(n.archived?"Note restored.":"Note archived. Tick \"Show archived\" to see it.")}catch(er){$("lbNErr").textContent="Couldn't change it. Try again."}};
 
-// ----- photos: pick → describe (alt text required) → shrink and re-encode (drops location data) → upload → note
-let lbPhotoFile=null,lbPhotoFor=null,lbAbort=null;
-async function reencode(file){let bmp;try{bmp=await createImageBitmap(file)}catch(e){throw {code:"unreadable"}}
- const k=Math.min(1,2000/Math.max(bmp.width,bmp.height)),w=Math.round(bmp.width*k),h=Math.round(bmp.height*k),c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(bmp,0,0,w,h);
- return await new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej({code:"unreadable"}),"image/jpeg",.85))}
 const upErr=e=>e?.code==="unreadable"?"This photo format can't be read here. Choose a JPEG or PNG.":e?.code==="too_large"?"That file is too big (20 MB limit).":e?.code==="unsupported_type"?"That file type can't be stored here.":e?.code==="quota_or_state"?"Storage is full. Archive old uploads or keep big files in your Drive.":"Couldn't upload it. Try again.";
-function pickPhoto(forNote){lbPhotoFor=forNote;$("lbPhoto").value="";$("lbPhoto").click()}
-$("lbPhotoBtn").onclick=()=>pickPhoto(null);$("lbNAddPhoto").onclick=()=>pickPhoto("editor");
-$("lbPhoto").addEventListener("change",()=>{const f=$("lbPhoto").files?.[0];if(!f)return;lbPhotoFile=f;
- if($("lbPrevImg").src.startsWith("blob:"))URL.revokeObjectURL($("lbPrevImg").src);$("lbPrevImg").src=URL.createObjectURL(f);$("lbAlt").value="";$("lbPErr").textContent="";$("lbPMsg").textContent="";
- $("lbAltSuggest").hidden=$("lbToNote").hidden=!sampleRef;showDlg($("lbPhotoEd"));$("lbAlt").focus()});
-async function photoClaude(kind){if(!sampleRef||!lbPhotoFile)return;let ok=false;try{ok=!!(await sampleRef.limits())?.images}catch(e){}
- if(!ok){$("lbPMsg").textContent="Claude can't read photos on this page.";return}lbAbort?.abort();const ac=lbAbort=new AbortController();$("lbPMsg").textContent="Claude is reading the photo"+"…";
- try{const img=await reencode(lbPhotoFile);const r=await sampleRef(kind==="alt"?"Write alt text for this photo: one plain sentence under 20 words saying what it shows and any readable heading. No preamble.":"Transcribe the text and diagrams in this photo of notes or a whiteboard into clean plain-text notes (headings, bullets, equations in plain text). Only what is in the photo; don't add facts or solve anything. If something is unreadable, write [unclear].",{images:[img],modelTier:"default",signal:ac.signal});
-  const t=String(r.text||"").trim();if(kind==="alt"){$("lbAlt").value=t.slice(0,250);$("lbPMsg").textContent="Suggested. Edit it if it's not quite right."}else{lbPend={transcript:t.slice(0,20000)};$("lbPMsg").textContent="Text ready. Save the photo to open it as a note you can edit."}}
- catch(e){$("lbPMsg").textContent=ac.signal.aborted?"Stopped.":sampleErr(e)}}
-$("lbAltSuggest").onclick=()=>photoClaude("alt");$("lbToNote").onclick=()=>photoClaude("text");
-$("lbPCancel").onclick=()=>{lbAbort?.abort();lbPend=null;$("lbPhotoEd").close()};
-$("lbPForm").addEventListener("submit",async e=>{e.preventDefault();const alt=$("lbAlt").value.trim().slice(0,250);if(!alt){libErr($("lbAlt"),"lbPErr","Describe the photo first, so it works with screen readers.");return}
- if(!assetsRef){$("lbPErr").textContent="Uploads need this page open in Claude by its owner.";return}$("lbPSave").disabled=true;$("lbPMsg").textContent="Saving"+"…";
- try{const blob=await reencode(lbPhotoFile);const r=await assetsRef.upload(blob,{type:"image/jpeg"});const tr=lbPend?.transcript||"";lbPend=null;$("lbPhotoEd").close();
-  if(lbPhotoFor==="editor"){lbNoteImgs.push(r.id);lbNoteAlts[r.id]=alt;lbNoteImgsRender();if(tr)$("lbNBody").value=($("lbNBody").value?$("lbNBody").value+"\n\n":"")+tr}
-  else openNote(null,{title:alt.slice(0,80),body:tr,imageIds:[r.id],alts:{[r.id]:alt}})}
- catch(er){$("lbPErr").textContent=upErr(er)}finally{$("lbPSave").disabled=false}});
-// photo viewer: a dialog that takes focus, closes with Escape, returns focus, zooms with buttons
-let lbZoom=1,lbViewFrom=null;
-function viewPhoto(id,noteId,from){const n=notes.find(x=>x.id===noteId);lbViewFrom=from;lbZoom=1;$("lbVImg").style.transform="";$("lbVImg").src=blobUrl(id);$("lbVImg").alt=(n?.alts||{})[id]||"";
- $("lbVCap").textContent=(n?.alts||{})[id]||"";$("lbVNote").dataset.lbopen=noteId;showDlg($("lbView"));$("lbVClose").focus()}
-$("lbVClose").onclick=()=>$("lbView").close();$("lbView").addEventListener("close",()=>{lbViewFrom?.focus?.()});
-$("lbVIn").onclick=()=>{lbZoom=Math.min(4,lbZoom+.5);$("lbVImg").style.transform=`scale(${lbZoom})`};$("lbVOut").onclick=()=>{lbZoom=Math.max(1,lbZoom-.5);$("lbVImg").style.transform=lbZoom===1?"":`scale(${lbZoom})`};
-$("lbVNote").onclick=()=>{const id=$("lbVNote").dataset.lbopen;$("lbView").close();openNote(id)};
-
 // ----- uploaded files (PDFs, documents): stored in Command Center; archive hides, nothing is deleted
 $("lbFileBtn").onclick=()=>{$("lbFile").value="";$("lbFile").click()};
 $("lbFile").addEventListener("change",async()=>{const f=$("lbFile").files?.[0];if(!f||!assetsRef||!dbRef)return;if(f.size>20*1048576){snack("That file is too big (20 MB limit). Keep it in your Drive instead.");return}
@@ -2514,8 +2457,7 @@ $("lbSHand").onclick=()=>{const title=$("lbSTitle").value.trim();if(!title){libE
   build:()=>[{server:"Command Center queue",tool:"queue_add",args:doc,run:async()=>{const r=await dbRef.collection("queue").add({...doc,created:Date.now()});return {id:r.id}}}],go:"Queue it",done:()=>snack("Queued for Claude.")})};
 
 // clicks inside the Library
-document.addEventListener("click",e=>{const b=e.target.closest("[data-lbopen],[data-lbview],[data-lbfarch]");if(!b||!$("v-library").contains(b))return;
- if(b.dataset.lbview){viewPhoto(b.dataset.lbview,b.dataset.lbnote,b);return}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-lbopen],[data-lbfarch]");if(!b||!$("v-library").contains(b))return;
  if(b.dataset.lbfarch&&dbRef){dbRef.doc("libfiles/"+b.dataset.lbfarch).update({archived:true}).then(()=>snack("Archived. It's hidden, not deleted.")).catch(()=>snack("Couldn't archive it."));return}
  if(b.dataset.lbopen)openNote(b.dataset.lbopen)});
 

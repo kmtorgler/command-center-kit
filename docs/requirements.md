@@ -71,14 +71,13 @@ _Origin: translated from the test suite of the first Command Center (one student
 
 ## Library (core: every copy has it)
 
+Photos in notes are off for now (REQ-LIB-3, 4, 6 and 15 were retired with them). Uploaded files accept PDF, text, Markdown and CSV only, so no photo is stored without being re-saved first.
+
 | ID | Requirement | Proved by |
 |---|---|---|
 | REQ-LIB-1 | Notes are saved in Command Center's own database, work on the phone, and keep their tags and their link to a class. | core-library |
-| REQ-LIB-2 | Library search finds notes (title, text, tags and photo descriptions) and Classes study items, and announces the number of results. | core-library |
-| REQ-LIB-3 | Every photo has a description (alt text) before it's saved. The person types it or accepts Claude's suggestion, and it's the image's accessible name everywhere. | core-library |
-| REQ-LIB-4 | Photos are shrunk and re-saved as JPEG before upload, so location data in the original never reaches storage. | core-library |
+| REQ-LIB-2 | Library search finds notes (title, text and tags) and Classes study items, and announces the number of results. | core-library |
 | REQ-LIB-5 | Uploads and notes are archived, never deleted, and the Library says that uploads are visible to anyone the page is shared with. | core-library |
-| REQ-LIB-6 | "Turn into a note" sends the photo to Claude only when the person presses it, and the text is shown for editing before anything is saved. | core-library |
 | REQ-LIB-7 | Upload errors name the fix (too large, wrong type, storage full). | core-library |
 | REQ-LIB-8 | Creating any Drive or OneDrive file, including "+ New" in Recent docs, goes through the confirm step, and creates exactly one file per confirmation. Files are never shared, moved or trashed. | core-library; `build.py` |
 | REQ-LIB-9 | OneDrive documents appear for Microsoft users on the computer, with the last saved copy on the phone. Microsoft-only people never cause a Google request. | library-microsoft |
@@ -86,7 +85,6 @@ _Origin: translated from the test suite of the first Command Center (one student
 | REQ-LIB-12 | Starting outlines are structure and guiding questions only, never content, answers or text to hand in. | core-library |
 | REQ-LIB-13 | The Microsoft server creates valid Word and Excel files in a "Command Center" OneDrive folder, renames instead of overwriting, and asks for no permission beyond `Files.ReadWrite` for it. | `server/tests`, library-microsoft |
 | REQ-LIB-14 | Hand to Claude from the Library queues one pending request with the project's details. | core-library |
-| REQ-LIB-15 | The photo viewer is a dialog that takes focus, closes with its button or Escape, returns focus to the photo it came from, and zooms with buttons. | core-library |
 
 ## Stickies (core: every copy has them)
 

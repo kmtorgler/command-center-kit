@@ -219,7 +219,7 @@ T("pc","Queue: a finished request's full text opens under Read the result",async
  const d=await until(()=>q("#queue details.qres"),"the Read the result expander");has(d.textContent,"Chapter 7 covers fins.","result text");ok(!d.open,"opened by default")});
 
 
-// ----- Library (notes, photos, files, documents, start a project)
+// ----- Library (notes, files, documents, start a project)
 const pngFile=async(name)=>{const c=document.createElement("canvas");c.width=40;c.height=30;const g=c.getContext("2d");g.fillStyle="#08f";g.fillRect(0,0,40,30);
  const b=await new Promise(r=>c.toBlob(r,"image/png"));return new File([b],name||"wb.png",{type:"image/png"})};
 const pick=(input,file)=>{const dt=new DataTransfer();dt.items.add(file);input.files=dt.files;input.dispatchEvent(new Event("change",{bubbles:true}))};
@@ -232,20 +232,6 @@ T("pc","Library: a note saves with tags and a class, and search and tag filters 
  click('#lbTags [data-lbtag="errands"]');await until(()=>$("lbNotes").textContent.includes("Lab supplies"),"tag filter");click('#lbTags [data-lbtag="errands"]')},true);
 T("pc","Library: search also finds study items from Classes",async()=>{
  setVal($("lbSearch"),"practice");await until(()=>$("lbStudy").textContent.includes("Practice quiz"),"the Classes quiz in results");setVal($("lbSearch"),"")},true);
-T("pc","Library: a photo needs a description, and is shrunk and re-saved as JPEG before upload",async()=>{
- closeAll();location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");pick($("lbPhoto"),await pngFile());await until(()=>$("lbPhotoEd").open,"photo dialog");
- q("#lbPForm button[type=submit]").click();has($("lbPErr").textContent,"Describe the photo","error");eq($("lbAlt").getAttribute("aria-invalid"),"true","field marked");
- clear();$("lbAltSuggest").click();await until(()=>$("lbAlt").value,"suggested description");ok(window.__log.some(l=>l[0]==="sample"&&l[2]===1),"the photo was not sent to Claude");
- q("#lbPForm button[type=submit]").click();await until(()=>window.__uploads.length,"the upload");eq(window.__uploads[0].type,"image/jpeg","uploaded type (re-encoded)");
- await until(()=>$("lbNoteEd").open,"the new note");q("#lbNForm button[type=submit]").click();await until(()=>dbOps("db.add","notes").some(x=>(x[2].imageIds||[]).length),"photo note saved");
- const n=dbOps("db.add","notes").find(x=>(x[2].imageIds||[]).length)[2];eq(n.alts[n.imageIds[0]],"Whiteboard with heat transfer equations","stored description")},true);
-T("pc","Library: Turn the photo's text into a note puts the text in the note to edit",async()=>{
- closeAll();location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");pick($("lbPhoto"),await pngFile("notes.png"));await until(()=>$("lbPhotoEd").open,"photo dialog");$("lbAlt").value="Lecture notes page";
- $("lbToNote").click();await until(()=>$("lbPMsg").textContent.includes("Text ready"),"transcription");q("#lbPForm button[type=submit]").click();
- await until(()=>$("lbNoteEd").open&&$("lbNBody").value.includes("Fin efficiency"),"note with the transcribed text");$("lbNCancel").click()},true);
-T("pc","Library: the photo viewer takes focus and gives it back when closed",async()=>{
- closeAll();location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");const th=await until(()=>q("#lbPhotos [data-lbview]"),"a photo thumbnail");th.focus();th.click();await until(()=>$("lbView").open,"viewer");
- eq(document.activeElement,$("lbVClose"),"focus in the viewer");ok($("lbVImg").alt,"image has alt text");$("lbVClose").click();await sleep(50);eq(document.activeElement,th,"focus back on the thumbnail")});
 T("pc","Library: Start a project drafts an outline, then creates one Google Doc after a confirm",async()=>{
  closeAll();location.hash="library";await until(()=>!$("v-library").hidden,"the Library tab");click("#lbStart");await until(()=>$("lbStartEd").open,"start dialog");$("lbSTitle").value="Lab 4 report";$("lbSType").value="doc";
  $("lbSDraft").click();await until(()=>$("lbSOut").value.includes("Introduction"),"outline");has(window.__lastPrompt,"never write the content","outline prompt (structure only)");
